@@ -31,9 +31,11 @@ class ScannerTab(QWidget):
         super().__init__(parent)
         self.scanner_worker = None
         self.progress_timer = QTimer(self)
+        self.github_fetcher = None
         self.init_ui()
         self.setup_connections()
         self.set_controls_state(is_running=False)
+        self.auto_update_on_startup()
 
     def init_ui(self):
         main_layout = QVBoxLayout(self)
@@ -381,6 +383,9 @@ class ScannerTab(QWidget):
     def reset_prefix(self):
         from PyQt6.QtWidgets import QMessageBox
 
+        if self.github_fetcher and self.github_fetcher.isRunning():
+            return
+
         self.prefix_reset_btn.setEnabled(False)
         self.prefix_reset_btn.setText("⏳")
 
@@ -388,12 +393,16 @@ class ScannerTab(QWidget):
             'prefix',
             'https://raw.githubusercontent.com/Afly-dream/Free-wyy/main/checknewidforfree/newfirst'
         )
-        self.github_fetcher.content_fetched.connect(self.on_content_fetched)
-        self.github_fetcher.error_occurred.connect(self.on_fetch_error)
+        self.github_fetcher.content_fetched.connect(self.on_content_fetched, Qt.ConnectionType.QueuedConnection)
+        self.github_fetcher.error_occurred.connect(self.on_fetch_error, Qt.ConnectionType.QueuedConnection)
+        self.github_fetcher.finished.connect(self.on_fetcher_finished, Qt.ConnectionType.QueuedConnection)
         self.github_fetcher.start()
 
     def reset_start_suffix(self):
         from PyQt6.QtWidgets import QMessageBox
+
+        if self.github_fetcher and self.github_fetcher.isRunning():
+            return
 
         self.start_suffix_reset_btn.setEnabled(False)
         self.start_suffix_reset_btn.setText("⏳")
@@ -402,23 +411,27 @@ class ScannerTab(QWidget):
             'start_suffix',
             'https://raw.githubusercontent.com/Afly-dream/Free-wyy/main/checknewidforfree/newnext'
         )
-        self.github_fetcher.content_fetched.connect(self.on_content_fetched)
-        self.github_fetcher.error_occurred.connect(self.on_fetch_error)
+        self.github_fetcher.content_fetched.connect(self.on_content_fetched, Qt.ConnectionType.QueuedConnection)
+        self.github_fetcher.error_occurred.connect(self.on_fetch_error, Qt.ConnectionType.QueuedConnection)
+        self.github_fetcher.finished.connect(self.on_fetcher_finished, Qt.ConnectionType.QueuedConnection)
         self.github_fetcher.start()
 
     def on_content_fetched(self, field_type, content):
         from PyQt6.QtWidgets import QMessageBox
 
-        if field_type == 'prefix':
-            self.prefix_input.setText(content)
-            self.prefix_reset_btn.setEnabled(True)
-            self.prefix_reset_btn.setText("🔄")
-            QMessageBox.information(self, "成功", f"前缀已重置为: {content}")
-        elif field_type == 'start_suffix':
-            self.start_suffix_input.setText(content)
-            self.start_suffix_reset_btn.setEnabled(True)
-            self.start_suffix_reset_btn.setText("🔄")
-            QMessageBox.information(self, "成功", f"起始后缀已重置为: {content}")
+        try:
+            if field_type == 'prefix':
+                self.prefix_input.setText(content)
+                self.prefix_reset_btn.setEnabled(True)
+                self.prefix_reset_btn.setText("🔄")
+                QMessageBox.information(self, "成功", f"前缀已更新为: {content}")
+            elif field_type == 'start_suffix':
+                self.start_suffix_input.setText(content)
+                self.start_suffix_reset_btn.setEnabled(True)
+                self.start_suffix_reset_btn.setText("🔄")
+                QMessageBox.information(self, "成功", f"起始后缀已更新为: {content}")
+        except Exception as e:
+            QMessageBox.warning(self, "错误", f"更新失败: {str(e)}")
 
     def on_fetch_error(self, error_message):
         from PyQt6.QtWidgets import QMessageBox
@@ -429,6 +442,75 @@ class ScannerTab(QWidget):
         self.start_suffix_reset_btn.setText("🔄")
 
         QMessageBox.warning(self, "错误", f"获取默认值失败: {error_message}")
+
+    def on_fetcher_finished(self):
+        self.github_fetcher = None
+
+    def auto_update_on_startup(self):
+        QTimer.singleShot(500, self.update_prefix_directly)
+
+    def update_prefix_directly(self):
+        try:
+            import requests
+            response = requests.get('https://raw.githubusercontent.com/Afly-dream/Free-wyy/main/checknewidforfree/newfirst', timeout=5)
+            if response.status_code == 200:
+                content = response.text.strip()
+                self.prefix_input.setText(content)
+                self.update_suffix_directly()
+        except Exception:
+            pass
+
+    def update_suffix_directly(self):
+        try:
+            import requests
+            response = requests.get('https://raw.githubusercontent.com/Afly-dream/Free-wyy/main/checknewidforfree/newnext', timeout=5)
+            if response.status_code == 200:
+                content = response.text.strip()
+                self.start_suffix_input.setText(content)
+        except Exception:
+            pass
+
+    def auto_update_prefix(self):
+        if self.github_fetcher and self.github_fetcher.isRunning():
+            return
+
+        self.github_fetcher = GitHubFetcher(
+            'auto_prefix',
+            'https://raw.githubusercontent.com/Afly-dream/Free-wyy/main/checknewidforfree/newfirst'
+        )
+        self.github_fetcher.content_fetched.connect(self.on_auto_content_fetched, Qt.ConnectionType.QueuedConnection)
+        self.github_fetcher.error_occurred.connect(self.on_auto_fetch_error, Qt.ConnectionType.QueuedConnection)
+        self.github_fetcher.finished.connect(self.on_auto_fetcher_finished, Qt.ConnectionType.QueuedConnection)
+        self.github_fetcher.start()
+
+    def auto_update_start_suffix(self):
+        if self.github_fetcher and self.github_fetcher.isRunning():
+            return
+
+        self.github_fetcher = GitHubFetcher(
+            'auto_start_suffix',
+            'https://raw.githubusercontent.com/Afly-dream/Free-wyy/main/checknewidforfree/newnext'
+        )
+        self.github_fetcher.content_fetched.connect(self.on_auto_content_fetched, Qt.ConnectionType.QueuedConnection)
+        self.github_fetcher.error_occurred.connect(self.on_auto_fetch_error, Qt.ConnectionType.QueuedConnection)
+        self.github_fetcher.finished.connect(self.on_auto_fetcher_finished, Qt.ConnectionType.QueuedConnection)
+        self.github_fetcher.start()
+
+    def on_auto_content_fetched(self, field_type, content):
+        try:
+            if field_type == 'auto_prefix':
+                self.prefix_input.setText(content)
+                self.auto_update_start_suffix()
+            elif field_type == 'auto_start_suffix':
+                self.start_suffix_input.setText(content)
+        except Exception as e:
+            pass
+
+    def on_auto_fetch_error(self, error_message):
+        pass
+
+    def on_auto_fetcher_finished(self):
+        self.github_fetcher = None
 
     def closeEvent(self, event):
         self.progress_timer.stop()
