@@ -108,6 +108,7 @@ class AnimatedButton(QPushButton):
 class ModernLineEdit(QLineEdit):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setStyleSheet("""
             QLineEdit {
                 background: rgba(50, 60, 70, 200);
@@ -190,6 +191,8 @@ class ModernProgressBar(QProgressBar):
 class ModernSpinBox(QSpinBox):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.setKeyboardTracking(True)
         self.setStyleSheet("""
             QSpinBox {
                 background: rgba(50, 60, 70, 200);
@@ -222,5 +225,28 @@ class ModernLabel(QLabel):
                 color: #ffffff;
                 background: transparent;
                 font-weight: bold;
+            }
+        """)
+
+class ResetButton(QPushButton):
+    def __init__(self, parent=None):
+        super().__init__("🔄", parent)
+        self.setFixedSize(24, 24)
+        self.setToolTip("重置为默认值")
+        self.setStyleSheet("""
+            QPushButton {
+                background: rgba(70, 80, 90, 200);
+                color: #ffffff;
+                border: 1px solid rgba(100, 110, 120, 180);
+                border-radius: 12px;
+                font-size: 12px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background: rgba(90, 100, 110, 220);
+                border: 1px solid rgba(120, 130, 140, 200);
+            }
+            QPushButton:pressed {
+                background: rgba(50, 60, 70, 240);
             }
         """)

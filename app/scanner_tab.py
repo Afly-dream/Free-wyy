@@ -1,9 +1,30 @@
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, 
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
                             QGroupBox, QHeaderView, QAbstractItemView)
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal
+import requests
 from .workers import ScannerWorker
 from .ui_effects import (ModernFrame, AnimatedButton, ModernLineEdit, ModernTextEdit,
-                        ModernTable, ModernProgressBar, ModernSpinBox, ModernLabel)
+                        ModernTable, ModernProgressBar, ModernSpinBox, ModernLabel, ResetButton)
+
+class GitHubFetcher(QThread):
+    content_fetched = pyqtSignal(str, str)
+    error_occurred = pyqtSignal(str)
+
+    def __init__(self, field_type, url):
+        super().__init__()
+        self.field_type = field_type
+        self.url = url
+
+    def run(self):
+        try:
+            response = requests.get(self.url, timeout=10)
+            if response.status_code == 200:
+                content = response.text.strip()
+                self.content_fetched.emit(self.field_type, content)
+            else:
+                self.error_occurred.emit(f"获取失败: HTTP {response.status_code}")
+        except Exception as e:
+            self.error_occurred.emit(f"网络错误: {str(e)}")
 
 class ScannerTab(QWidget):
     def __init__(self, parent=None):
@@ -12,6 +33,7 @@ class ScannerTab(QWidget):
         self.progress_timer = QTimer(self)
         self.init_ui()
         self.setup_connections()
+        self.set_controls_state(is_running=False)
 
     def init_ui(self):
         main_layout = QVBoxLayout(self)
@@ -28,14 +50,17 @@ class ScannerTab(QWidget):
         self.prefix_input = ModernLineEdit()
         self.prefix_input.setText("G")
         self.prefix_input.setPlaceholderText("前缀")
-        
+
         self.start_suffix_input = ModernLineEdit()
         self.start_suffix_input.setText("KBEP6B")
         self.start_suffix_input.setPlaceholderText("起始后缀")
-        
+
         self.end_suffix_input = ModernLineEdit()
         self.end_suffix_input.setText("ZZZZZZ")
         self.end_suffix_input.setPlaceholderText("结束后缀")
+
+        self.prefix_reset_btn = ResetButton()
+        self.start_suffix_reset_btn = ResetButton()
         
         self.threads_spinbox = ModernSpinBox()
         self.threads_spinbox.setRange(1, 1000)
@@ -51,8 +76,10 @@ class ScannerTab(QWidget):
         
         config_layout.addWidget(ModernLabel("前缀:"), 0, 0)
         config_layout.addWidget(self.prefix_input, 0, 1)
+        config_layout.addWidget(self.prefix_reset_btn, 0, 2)
         config_layout.addWidget(ModernLabel("起始后缀:"), 1, 0)
         config_layout.addWidget(self.start_suffix_input, 1, 1)
+        config_layout.addWidget(self.start_suffix_reset_btn, 1, 2)
         config_layout.addWidget(ModernLabel("结束后缀:"), 2, 0)
         config_layout.addWidget(self.end_suffix_input, 2, 1)
         config_layout.addWidget(ModernLabel("线程数:"), 3, 0)
@@ -170,6 +197,9 @@ class ScannerTab(QWidget):
         self.analyze_gift_btn.clicked.connect(lambda: self.send_to_analyzer('gift'))
         self.analyze_audio_btn.clicked.connect(lambda: self.send_to_analyzer('audio'))
 
+        self.prefix_reset_btn.clicked.connect(self.reset_prefix)
+        self.start_suffix_reset_btn.clicked.connect(self.reset_start_suffix)
+
     def start_scan(self):
         from PyQt6.QtWidgets import QMessageBox, QTableWidgetItem
 
@@ -272,6 +302,9 @@ class ScannerTab(QWidget):
         self.sleep_every_spinbox.setDisabled(is_running)
         self.sleep_for_spinbox.setDisabled(is_running)
 
+        self.prefix_reset_btn.setDisabled(is_running)
+        self.start_suffix_reset_btn.setDisabled(is_running)
+
         if not is_running:
             self.pause_button.setText("⏸️ 暂停")
             self.progress_bar.setValue(0)
@@ -318,8 +351,15 @@ class ScannerTab(QWidget):
                 links.append(item.text())
 
         if links:
-            main_window = self.parent().parent()
-            if hasattr(main_window, 'tabs') and hasattr(main_window, 'analyzer_tab'):
+            main_window = None
+            widget = self
+            while widget is not None:
+                if hasattr(widget, 'tabs') and hasattr(widget, 'analyzer_tab'):
+                    main_window = widget
+                    break
+                widget = widget.parent()
+
+            if main_window:
                 analyzer_tab = main_window.analyzer_tab
                 current_text = analyzer_tab.links_text.toPlainText()
                 if current_text:
@@ -337,6 +377,58 @@ class ScannerTab(QWidget):
         else:
             type_names = {'vip': 'VIP', 'audio': '音质', 'gift': '礼品'}
             QMessageBox.information(self, "提示", f"没有{type_names[link_type]}链接可发送")
+
+    def reset_prefix(self):
+        from PyQt6.QtWidgets import QMessageBox
+
+        self.prefix_reset_btn.setEnabled(False)
+        self.prefix_reset_btn.setText("⏳")
+
+        self.github_fetcher = GitHubFetcher(
+            'prefix',
+            'https://raw.githubusercontent.com/Afly-dream/Free-wyy/main/checknewidforfree/newfirst'
+        )
+        self.github_fetcher.content_fetched.connect(self.on_content_fetched)
+        self.github_fetcher.error_occurred.connect(self.on_fetch_error)
+        self.github_fetcher.start()
+
+    def reset_start_suffix(self):
+        from PyQt6.QtWidgets import QMessageBox
+
+        self.start_suffix_reset_btn.setEnabled(False)
+        self.start_suffix_reset_btn.setText("⏳")
+
+        self.github_fetcher = GitHubFetcher(
+            'start_suffix',
+            'https://raw.githubusercontent.com/Afly-dream/Free-wyy/main/checknewidforfree/newnext'
+        )
+        self.github_fetcher.content_fetched.connect(self.on_content_fetched)
+        self.github_fetcher.error_occurred.connect(self.on_fetch_error)
+        self.github_fetcher.start()
+
+    def on_content_fetched(self, field_type, content):
+        from PyQt6.QtWidgets import QMessageBox
+
+        if field_type == 'prefix':
+            self.prefix_input.setText(content)
+            self.prefix_reset_btn.setEnabled(True)
+            self.prefix_reset_btn.setText("🔄")
+            QMessageBox.information(self, "成功", f"前缀已重置为: {content}")
+        elif field_type == 'start_suffix':
+            self.start_suffix_input.setText(content)
+            self.start_suffix_reset_btn.setEnabled(True)
+            self.start_suffix_reset_btn.setText("🔄")
+            QMessageBox.information(self, "成功", f"起始后缀已重置为: {content}")
+
+    def on_fetch_error(self, error_message):
+        from PyQt6.QtWidgets import QMessageBox
+
+        self.prefix_reset_btn.setEnabled(True)
+        self.prefix_reset_btn.setText("🔄")
+        self.start_suffix_reset_btn.setEnabled(True)
+        self.start_suffix_reset_btn.setText("🔄")
+
+        QMessageBox.warning(self, "错误", f"获取默认值失败: {error_message}")
 
     def closeEvent(self, event):
         self.progress_timer.stop()
