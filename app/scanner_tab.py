@@ -1,14 +1,9 @@
-# -*- coding: utf-8 -*-
-"""
-链接扫描器标签页的UI和逻辑
-"""
-from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QLineEdit,
-    QPushButton, QSpinBox, QTextEdit, QTableWidget, QTableWidgetItem,
-    QGroupBox, QHeaderView, QProgressBar, QMessageBox, QAbstractItemView
-)
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, 
+                            QGroupBox, QHeaderView, QAbstractItemView)
 from PyQt6.QtCore import Qt, QTimer
 from .workers import ScannerWorker
+from .ui_effects import (ModernFrame, AnimatedButton, ModernLineEdit, ModernTextEdit,
+                        ModernTable, ModernProgressBar, ModernSpinBox, ModernLabel)
 
 class ScannerTab(QWidget):
     def __init__(self, parent=None):
@@ -19,116 +14,145 @@ class ScannerTab(QWidget):
         self.setup_connections()
 
     def init_ui(self):
-        # --- 布局定义 ---
         main_layout = QVBoxLayout(self)
-        top_splitter = QHBoxLayout()
+        main_layout.setSpacing(20)
+        main_layout.setContentsMargins(20, 20, 20, 20)
         
-        # --- 配置区域 ---
-        config_group = QGroupBox("扫描配置")
-        config_layout = QGridLayout()
+        top_layout = QHBoxLayout()
         
-        self.prefix_label = QLabel("前缀:")
-        self.prefix_input = QLineEdit("G")
-        self.start_suffix_label = QLabel("起始后缀:")
-        self.start_suffix_input = QLineEdit("KBEP6B")
-        self.end_suffix_label = QLabel("结束后缀:")
-        self.end_suffix_input = QLineEdit("ZZZZZZ")
-        self.threads_label = QLabel("线程数:")
-        self.threads_spinbox = QSpinBox()
+        config_frame = ModernFrame()
+        config_layout = QGridLayout(config_frame)
+        config_layout.setContentsMargins(20, 20, 20, 20)
+        config_layout.setSpacing(15)
+        
+        self.prefix_input = ModernLineEdit()
+        self.prefix_input.setText("G")
+        self.prefix_input.setPlaceholderText("前缀")
+        
+        self.start_suffix_input = ModernLineEdit()
+        self.start_suffix_input.setText("KBEP6B")
+        self.start_suffix_input.setPlaceholderText("起始后缀")
+        
+        self.end_suffix_input = ModernLineEdit()
+        self.end_suffix_input.setText("ZZZZZZ")
+        self.end_suffix_input.setPlaceholderText("结束后缀")
+        
+        self.threads_spinbox = ModernSpinBox()
         self.threads_spinbox.setRange(1, 1000)
         self.threads_spinbox.setValue(100)
-
-        self.sleep_every_label = QLabel("每 N 个请求暂停:")
-        self.sleep_every_spinbox = QSpinBox()
-        self.sleep_every_spinbox.setRange(0, 10000)
-        self.sleep_every_spinbox.setValue(100) # 默认每100个请求
-
-        self.sleep_for_label = QLabel("暂停 M 秒:")
-        self.sleep_for_spinbox = QSpinBox()
-        self.sleep_for_spinbox.setRange(0, 60)
-        self.sleep_for_spinbox.setValue(2) # 默认暂停2秒
-
-        config_layout.addWidget(self.prefix_label, 0, 0)
-        config_layout.addWidget(self.prefix_input, 0, 1)
-        config_layout.addWidget(self.start_suffix_label, 1, 0)
-        config_layout.addWidget(self.start_suffix_input, 1, 1)
-        config_layout.addWidget(self.end_suffix_label, 2, 0)
-        config_layout.addWidget(self.end_suffix_input, 2, 1)
-        config_layout.addWidget(self.threads_label, 3, 0)
-        config_layout.addWidget(self.threads_spinbox, 3, 1)
-        config_layout.addWidget(self.sleep_every_label, 4, 0)
-        config_layout.addWidget(self.sleep_every_spinbox, 4, 1)
-        config_layout.addWidget(self.sleep_for_label, 5, 0)
-        config_layout.addWidget(self.sleep_for_spinbox, 5, 1)
-        config_group.setLayout(config_layout)
         
-        # --- 控制与状态区域 ---
-        control_status_group = QGroupBox("控制与状态")
-        control_status_layout = QVBoxLayout()
-
-        # 控制按钮
+        self.sleep_every_spinbox = ModernSpinBox()
+        self.sleep_every_spinbox.setRange(0, 10000)
+        self.sleep_every_spinbox.setValue(100)
+        
+        self.sleep_for_spinbox = ModernSpinBox()
+        self.sleep_for_spinbox.setRange(0, 60)
+        self.sleep_for_spinbox.setValue(2)
+        
+        config_layout.addWidget(ModernLabel("前缀:"), 0, 0)
+        config_layout.addWidget(self.prefix_input, 0, 1)
+        config_layout.addWidget(ModernLabel("起始后缀:"), 1, 0)
+        config_layout.addWidget(self.start_suffix_input, 1, 1)
+        config_layout.addWidget(ModernLabel("结束后缀:"), 2, 0)
+        config_layout.addWidget(self.end_suffix_input, 2, 1)
+        config_layout.addWidget(ModernLabel("线程数:"), 3, 0)
+        config_layout.addWidget(self.threads_spinbox, 3, 1)
+        config_layout.addWidget(ModernLabel("每N个请求暂停:"), 4, 0)
+        config_layout.addWidget(self.sleep_every_spinbox, 4, 1)
+        config_layout.addWidget(ModernLabel("暂停M秒:"), 5, 0)
+        config_layout.addWidget(self.sleep_for_spinbox, 5, 1)
+        
+        control_frame = ModernFrame()
+        control_layout = QVBoxLayout(control_frame)
+        control_layout.setContentsMargins(20, 20, 20, 20)
+        control_layout.setSpacing(15)
+        
         button_layout = QHBoxLayout()
-        self.start_button = QPushButton("开始扫描")
-        self.pause_button = QPushButton("暂停")
-        self.stop_button = QPushButton("停止")
+        self.start_button = AnimatedButton("🚀 开始扫描")
+        self.pause_button = AnimatedButton("⏸️ 暂停")
+        self.stop_button = AnimatedButton("⏹️ 停止")
         self.pause_button.setEnabled(False)
         self.stop_button.setEnabled(False)
+        
         button_layout.addWidget(self.start_button)
         button_layout.addWidget(self.pause_button)
         button_layout.addWidget(self.stop_button)
         
-        # 状态显示
-        self.progress_bar = QProgressBar()
-        self.status_label = QLabel("状态: 空闲")
+        self.progress_bar = ModernProgressBar()
+        self.status_label = ModernLabel("状态: 空闲")
         
-        control_status_layout.addLayout(button_layout)
-        control_status_layout.addWidget(self.progress_bar)
-        control_status_layout.addWidget(self.status_label)
-        control_status_group.setLayout(control_status_layout)
-
-        top_splitter.addWidget(config_group, 1)
-        top_splitter.addWidget(control_status_group, 1)
-
-        # --- 结果显示区域 ---
-        results_group = QGroupBox("扫描结果")
-        results_layout = QHBoxLayout()
+        control_layout.addLayout(button_layout)
+        control_layout.addWidget(self.progress_bar)
+        control_layout.addWidget(self.status_label)
         
-        # VIP链接
+        top_layout.addWidget(config_frame, 1)
+        top_layout.addWidget(control_frame, 1)
+        
+        results_frame = ModernFrame()
+        results_layout = QHBoxLayout(results_frame)
+        results_layout.setContentsMargins(20, 20, 20, 20)
+        results_layout.setSpacing(20)
+        
         vip_layout = QVBoxLayout()
+        vip_header_layout = QHBoxLayout()
+        vip_header_layout.addWidget(ModernLabel("🎯 VIP链接"))
+        vip_header_layout.addStretch()
+        self.copy_vip_btn = AnimatedButton("📋 复制")
+        self.analyze_vip_btn = AnimatedButton("🔬 分析")
+        vip_header_layout.addWidget(self.copy_vip_btn)
+        vip_header_layout.addWidget(self.analyze_vip_btn)
+        vip_layout.addLayout(vip_header_layout)
         self.vip_table = self.create_results_table(["VIP链接"])
-        self.send_vip_button = QPushButton("发送选中VIP链接到分析器")
         vip_layout.addWidget(self.vip_table)
-        vip_layout.addWidget(self.send_vip_button)
 
-        # 礼品链接
         gift_layout = QVBoxLayout()
+        gift_header_layout = QHBoxLayout()
+        gift_header_layout.addWidget(ModernLabel("🎁 礼品链接"))
+        gift_header_layout.addStretch()
+        self.copy_gift_btn = AnimatedButton("📋 复制")
+        self.analyze_gift_btn = AnimatedButton("🔬 分析")
+        gift_header_layout.addWidget(self.copy_gift_btn)
+        gift_header_layout.addWidget(self.analyze_gift_btn)
+        gift_layout.addLayout(gift_header_layout)
         self.gift_table = self.create_results_table(["礼品链接"])
-        self.send_gift_button = QPushButton("发送选中礼品链接到分析器")
         gift_layout.addWidget(self.gift_table)
-        gift_layout.addWidget(self.send_gift_button)
-        
+
+        audio_layout = QVBoxLayout()
+        audio_header_layout = QHBoxLayout()
+        audio_header_layout.addWidget(ModernLabel("🎵 音质链接"))
+        audio_header_layout.addStretch()
+        self.copy_audio_btn = AnimatedButton("📋 复制")
+        self.analyze_audio_btn = AnimatedButton("🔬 分析")
+        audio_header_layout.addWidget(self.copy_audio_btn)
+        audio_header_layout.addWidget(self.analyze_audio_btn)
+        audio_layout.addLayout(audio_header_layout)
+        self.audio_table = self.create_results_table(["音质链接"])
+        audio_layout.addWidget(self.audio_table)
+
         results_layout.addLayout(vip_layout, 1)
         results_layout.addLayout(gift_layout, 1)
-        results_group.setLayout(results_layout)
-
-        # --- 日志输出区域 ---
-        log_group = QGroupBox("日志输出")
-        log_layout = QVBoxLayout()
-        self.log_output = QTextEdit()
+        results_layout.addLayout(audio_layout, 1)
+        
+        log_frame = ModernFrame()
+        log_layout = QVBoxLayout(log_frame)
+        log_layout.setContentsMargins(20, 20, 20, 20)
+        log_layout.addWidget(ModernLabel("📋 日志输出"))
+        
+        self.log_output = ModernTextEdit()
         self.log_output.setReadOnly(True)
+        self.log_output.setMaximumHeight(150)
         log_layout.addWidget(self.log_output)
-        log_group.setLayout(log_layout)
-
-        main_layout.addLayout(top_splitter)
-        main_layout.addWidget(results_group, 3)
-        main_layout.addWidget(log_group, 1)
+        
+        main_layout.addLayout(top_layout)
+        main_layout.addWidget(results_frame, 2)
+        main_layout.addWidget(log_frame, 1)
 
     def create_results_table(self, headers):
-        table = QTableWidget()
+        table = ModernTable()
         table.setColumnCount(len(headers))
         table.setHorizontalHeaderLabels(headers)
         table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         return table
 
@@ -138,7 +162,17 @@ class ScannerTab(QWidget):
         self.pause_button.clicked.connect(self.toggle_pause_scan)
         self.progress_timer.timeout.connect(self.update_progress)
 
+        self.copy_vip_btn.clicked.connect(lambda: self.copy_links('vip'))
+        self.copy_gift_btn.clicked.connect(lambda: self.copy_links('gift'))
+        self.copy_audio_btn.clicked.connect(lambda: self.copy_links('audio'))
+
+        self.analyze_vip_btn.clicked.connect(lambda: self.send_to_analyzer('vip'))
+        self.analyze_gift_btn.clicked.connect(lambda: self.send_to_analyzer('gift'))
+        self.analyze_audio_btn.clicked.connect(lambda: self.send_to_analyzer('audio'))
+
     def start_scan(self):
+        from PyQt6.QtWidgets import QMessageBox, QTableWidgetItem
+
         prefix = self.prefix_input.text()
         start_suffix = self.start_suffix_input.text()
         end_suffix = self.end_suffix_input.text()
@@ -149,23 +183,24 @@ class ScannerTab(QWidget):
         if not all([prefix, start_suffix, end_suffix]) or len(start_suffix) != 6 or len(end_suffix) != 6:
             QMessageBox.warning(self, "输入错误", "请确保前缀不为空，且起始/结束后缀均为6位字符。")
             return
-            
+
         self.set_controls_state(is_running=True)
         self.log_output.clear()
         self.vip_table.setRowCount(0)
         self.gift_table.setRowCount(0)
+        self.audio_table.setRowCount(0)
 
         self.scanner_worker = ScannerWorker(
             prefix, start_suffix, end_suffix, max_workers,
             sleep_every, sleep_for
         )
-        
+
         self.scanner_worker.log_message.connect(self.log_output.append)
         self.scanner_worker.result_found.connect(self.add_result_to_table)
         self.scanner_worker.finished.connect(self.scan_finished)
-        
+
         self.scanner_worker.start()
-        self.progress_timer.start(1000) # 每秒更新一次进度
+        self.progress_timer.start(1000)
 
     def stop_scan(self):
         if self.scanner_worker:
@@ -177,27 +212,35 @@ class ScannerTab(QWidget):
     def toggle_pause_scan(self):
         if not self.scanner_worker:
             return
-        
-        if self.pause_button.text() == "暂停":
+
+        if self.pause_button.text() == "⏸️ 暂停":
             self.scanner_worker.pause()
             self.progress_timer.stop()
-            self.pause_button.setText("恢复")
+            self.pause_button.setText("▶️ 恢复")
             self.status_label.setText("状态: 已暂停")
         else:
             self.scanner_worker.resume()
             self.progress_timer.start(1000)
-            self.pause_button.setText("暂停")
+            self.pause_button.setText("⏸️ 暂停")
             self.status_label.setText("状态: 正在扫描...")
 
     def scan_finished(self):
         self.progress_timer.stop()
-        self.update_progress() # 最后更新一次，确保数据准确
+        self.update_progress()
         self.set_controls_state(is_running=False)
         self.status_label.setText("状态: 扫描完成")
         self.scanner_worker = None
 
     def add_result_to_table(self, link_type, url):
-        table = self.vip_table if link_type == 'vip' else self.gift_table
+        from PyQt6.QtWidgets import QTableWidgetItem
+
+        if link_type == 'vip':
+            table = self.vip_table
+        elif link_type == 'audio':
+            table = self.audio_table
+        else:
+            table = self.gift_table
+
         row_position = table.rowCount()
         table.insertRow(row_position)
         table.setItem(row_position, 0, QTableWidgetItem(url))
@@ -206,12 +249,12 @@ class ScannerTab(QWidget):
     def update_progress(self):
         if not self.scanner_worker or not self.scanner_worker.isRunning():
             return
-            
+
         checked = self.scanner_worker.checked_count
         found = self.scanner_worker.found_count
         speed = self.scanner_worker.get_speed()
         self.status_label.setText(f"状态: 已检查 {checked} / 已找到 {found} / 速度: {speed:.2f} 个/秒")
-        
+
         total_range = self.scanner_worker.end_id - self.scanner_worker.start_id
         if total_range > 0:
             progress_value = int(((checked) / total_range) * 100)
@@ -221,27 +264,83 @@ class ScannerTab(QWidget):
         self.start_button.setEnabled(not is_running)
         self.pause_button.setEnabled(is_running)
         self.stop_button.setEnabled(is_running)
-        
+
         self.prefix_input.setDisabled(is_running)
         self.start_suffix_input.setDisabled(is_running)
         self.end_suffix_input.setDisabled(is_running)
         self.threads_spinbox.setDisabled(is_running)
         self.sleep_every_spinbox.setDisabled(is_running)
         self.sleep_for_spinbox.setDisabled(is_running)
-        
+
         if not is_running:
-            self.pause_button.setText("暂停")
+            self.pause_button.setText("⏸️ 暂停")
             self.progress_bar.setValue(0)
-    
-    def get_selected_links(self, link_type):
-        table = self.vip_table if link_type == 'vip' else self.gift_table
-        selected_items = table.selectedItems()
-        # 由于我们是整行选择，每列都有一个item，需要去重
-        return list(set(item.text() for item in selected_items))
+
+    def copy_links(self, link_type):
+        from PyQt6.QtWidgets import QApplication, QMessageBox
+
+        if link_type == 'vip':
+            table = self.vip_table
+        elif link_type == 'audio':
+            table = self.audio_table
+        else:
+            table = self.gift_table
+
+        links = []
+        for row in range(table.rowCount()):
+            item = table.item(row, 0)
+            if item:
+                links.append(item.text())
+
+        if links:
+            clipboard_text = '\n'.join(links)
+            QApplication.clipboard().setText(clipboard_text)
+            type_names = {'vip': 'VIP', 'audio': '音质', 'gift': '礼品'}
+            QMessageBox.information(self, "复制成功", f"已复制 {len(links)} 个{type_names[link_type]}链接到剪贴板")
+        else:
+            type_names = {'vip': 'VIP', 'audio': '音质', 'gift': '礼品'}
+            QMessageBox.information(self, "提示", f"没有{type_names[link_type]}链接可复制")
+
+    def send_to_analyzer(self, link_type):
+        from PyQt6.QtWidgets import QMessageBox
+
+        if link_type == 'vip':
+            table = self.vip_table
+        elif link_type == 'audio':
+            table = self.audio_table
+        else:
+            table = self.gift_table
+
+        links = []
+        for row in range(table.rowCount()):
+            item = table.item(row, 0)
+            if item:
+                links.append(item.text())
+
+        if links:
+            main_window = self.parent().parent()
+            if hasattr(main_window, 'tabs') and hasattr(main_window, 'analyzer_tab'):
+                analyzer_tab = main_window.analyzer_tab
+                current_text = analyzer_tab.links_text.toPlainText()
+                if current_text:
+                    new_text = current_text + '\n' + '\n'.join(links)
+                else:
+                    new_text = '\n'.join(links)
+                analyzer_tab.links_text.setPlainText(new_text)
+                analyzer_tab.update_links_count()
+                main_window.tabs.setCurrentWidget(analyzer_tab)
+
+                type_names = {'vip': 'VIP', 'audio': '音质', 'gift': '礼品'}
+                QMessageBox.information(self, "转移成功", f"已将 {len(links)} 个{type_names[link_type]}链接发送到分析器")
+            else:
+                QMessageBox.warning(self, "错误", "无法找到分析器标签页")
+        else:
+            type_names = {'vip': 'VIP', 'audio': '音质', 'gift': '礼品'}
+            QMessageBox.information(self, "提示", f"没有{type_names[link_type]}链接可发送")
 
     def closeEvent(self, event):
         self.progress_timer.stop()
         if self.scanner_worker and self.scanner_worker.isRunning():
             self.stop_scan()
-            self.scanner_worker.wait() # 等待线程完全退出
-        event.accept() 
+            self.scanner_worker.wait()
+        event.accept()

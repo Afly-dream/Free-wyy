@@ -1,77 +1,122 @@
-# -*- coding: utf-8 -*-
-"""
-应用主窗口 (QMainWindow)，负责组装所有UI组件
-"""
 import sys
-from PyQt6.QtWidgets import QMainWindow, QTabWidget, QApplication
-from PyQt6.QtCore import QFile
-
+from PyQt6.QtWidgets import (QMainWindow, QTabWidget, QWidget, QVBoxLayout,
+                            QHBoxLayout, QApplication, QGraphicsDropShadowEffect,
+                            QFrame)
+from PyQt6.QtCore import Qt, QPropertyAnimation, QEasingCurve, QRect, pyqtProperty
+from PyQt6.QtGui import QPainter, QPainterPath, QColor, QLinearGradient
 from .scanner_tab import ScannerTab
 from .analyzer_tab import AnalyzerTab
+from .ui_effects import ModernFrame, BlurredBackground
+
+class ModernTabWidget(QTabWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setStyleSheet("""
+            QTabWidget::pane {
+                border: none;
+                background: rgba(40, 50, 60, 220);
+                border-radius: 15px;
+            }
+            QTabBar::tab {
+                background: rgba(60, 70, 80, 200);
+                color: #ffffff;
+                padding: 12px 24px;
+                margin: 2px;
+                border-radius: 10px;
+                font-weight: bold;
+            }
+            QTabBar::tab:selected {
+                background: rgba(80, 90, 100, 240);
+                color: #00d4ff;
+            }
+            QTabBar::tab:hover {
+                background: rgba(70, 80, 90, 220);
+            }
+        """)
 
 class MainWindow(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("MAX-超级工具集")
-        self.setGeometry(100, 100, 1200, 800)
-
+        self.setWindowTitle("网易云音乐链接工具集")
+        self.setGeometry(100, 100, 1400, 900)
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        
         self.init_ui()
-        self.setup_connections()
-
+        self.setup_animations()
+        
     def init_ui(self):
-        self.tabs = QTabWidget()
-        self.setCentralWidget(self.tabs)
-
-        # 创建标签页
+        central_widget = BlurredBackground()
+        self.setCentralWidget(central_widget)
+        
+        main_layout = QVBoxLayout(central_widget)
+        main_layout.setContentsMargins(20, 20, 20, 20)
+        
+        title_frame = ModernFrame()
+        title_layout = QHBoxLayout(title_frame)
+        title_layout.setContentsMargins(20, 15, 20, 15)
+        
+        from PyQt6.QtWidgets import QLabel, QPushButton
+        title_label = QLabel("网易云音乐链接工具集")
+        title_label.setStyleSheet("""
+            QLabel {
+                color: white;
+                font-size: 24px;
+                font-weight: bold;
+                background: transparent;
+            }
+        """)
+        
+        close_btn = QPushButton("×")
+        close_btn.setFixedSize(30, 30)
+        close_btn.setStyleSheet("""
+            QPushButton {
+                background: rgba(255, 0, 0, 0.7);
+                color: white;
+                border: none;
+                border-radius: 15px;
+                font-size: 18px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background: rgba(255, 0, 0, 0.9);
+            }
+        """)
+        close_btn.clicked.connect(self.close)
+        
+        title_layout.addWidget(title_label)
+        title_layout.addStretch()
+        title_layout.addWidget(close_btn)
+        
+        self.tabs = ModernTabWidget()
+        
         self.scanner_tab = ScannerTab()
         self.analyzer_tab = AnalyzerTab()
-
-        # 添加标签页
-        self.tabs.addTab(self.scanner_tab, "链接扫描器")
-        self.tabs.addTab(self.analyzer_tab, "链接分析器")
-
-    def setup_connections(self):
-        """设置跨标签页的信号和槽连接"""
-        self.scanner_tab.send_vip_button.clicked.connect(self.send_vip_links_to_analyzer)
-        self.scanner_tab.send_gift_button.clicked.connect(self.send_gift_links_to_analyzer)
-    
-    def send_vip_links_to_analyzer(self):
-        """获取扫描器中选中的VIP链接并发送到分析器"""
-        selected_links = self.scanner_tab.get_selected_links('vip')
-        if selected_links:
-            self.analyzer_tab.add_links_to_input('VIP', selected_links)
-            self.tabs.setCurrentWidget(self.analyzer_tab) # 自动切换到分析器标签页
-
-    def send_gift_links_to_analyzer(self):
-        """获取扫描器中选中的礼品链接并发送到分析器"""
-        selected_links = self.scanner_tab.get_selected_links('gift')
-        if selected_links:
-            self.analyzer_tab.add_links_to_input('礼品', selected_links)
-            self.tabs.setCurrentWidget(self.analyzer_tab) # 自动切换到分析器标签页
-
-    def closeEvent(self, event):
-        """确保在关闭主窗口时，所有后台线程都能被正确处理"""
-        # 调用子控件的closeEvent，确保线程被关闭
-        self.scanner_tab.closeEvent(event)
-        # 分析器标签页的线程是在需要时才创建，并且通常运行时间较短，
-        # 但为保险起见，也应添加类似的逻辑（如果需要长时间运行）
-        # self.analyzer_tab.closeEvent(event) 
-        super().closeEvent(event)
-
-def load_stylesheet(app):
-    """加载QSS样式表"""
-    try:
-        # 在正常的Python环境中，可以使用相对路径
-        # 在PyInstaller打包后，sys._MEIPASS是包含资源的临时文件夹
-        base_path = getattr(sys, '_MEIPASS', '.')
-        style_path = f"{base_path}/ui/style.qss"
         
-        file = QFile(style_path)
-        if file.open(QFile.OpenModeFlag.ReadOnly | QFile.OpenModeFlag.Text):
-            stream = file.readAll()
-            app.setStyleSheet(stream.data().decode("utf-8"))
-            print("样式表加载成功。")
-            return True
-    except Exception as e:
-        print(f"无法加载样式表: {e}")
-    return False 
+        self.tabs.addTab(self.scanner_tab, "🔍 链接扫描器")
+        self.tabs.addTab(self.analyzer_tab, "🔬 链接分析器")
+        
+        main_layout.addWidget(title_frame)
+        main_layout.addWidget(self.tabs)
+        
+    def setup_animations(self):
+        self.fade_animation = QPropertyAnimation(self, b"windowOpacity")
+        self.fade_animation.setDuration(300)
+        self.fade_animation.setEasingCurve(QEasingCurve.Type.OutCubic)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.setWindowOpacity(0)
+        self.fade_animation.setStartValue(0)
+        self.fade_animation.setEndValue(1)
+        self.fade_animation.start()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.drag_position = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+            event.accept()
+
+    def mouseMoveEvent(self, event):
+        if event.buttons() == Qt.MouseButton.LeftButton and hasattr(self, 'drag_position'):
+            self.move(event.globalPosition().toPoint() - self.drag_position)
+            event.accept()
